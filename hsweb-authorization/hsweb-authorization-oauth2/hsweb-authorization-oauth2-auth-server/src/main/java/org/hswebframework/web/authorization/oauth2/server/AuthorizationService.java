@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 http://www.hswebframework.org
+ *  Copyright 2019 http://www.hswebframework.org
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,9 +19,13 @@
 package org.hswebframework.web.authorization.oauth2.server;
 
 /**
- * TODO 完成注释
- *
+ * 授权服务
  * @author zhouhao
+ * @see org.hswebframework.web.authorization.oauth2.server.support.code.AuthorizationCodeGranter
+ * @see org.hswebframework.web.authorization.oauth2.server.support.client.ClientCredentialGranter
+ * @see org.hswebframework.web.authorization.oauth2.server.support.refresh.RefreshTokenGranter
+ * @see org.hswebframework.web.authorization.oauth2.server.support.implicit.ImplicitGranter
+ * @see org.hswebframework.web.authorization.oauth2.server.support.password.PasswordGranter
  */
 public interface AuthorizationService {
 }

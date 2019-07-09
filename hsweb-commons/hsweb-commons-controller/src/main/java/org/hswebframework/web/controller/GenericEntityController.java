@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright 2016 http://www.hswebframework.org
+ *  * Copyright 2019 http://www.hswebframework.org
  *  *
  *  * Licensed under the Apache License, Version 2.0 (the "License");
  *  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 
 package org.hswebframework.web.controller;
 
+import org.hswebframework.web.authorization.annotation.Authorize;
 import org.hswebframework.web.commons.entity.Entity;
 import org.hswebframework.web.commons.entity.GenericEntity;
 import org.hswebframework.web.service.CrudService;
@@ -34,6 +35,7 @@ public interface GenericEntityController<E extends GenericEntity<PK>, PK, Q exte
         extends CrudController<E, PK, Q, M> {
 
     @Override
+    @Authorize(ignore = true)
     CrudService<E, PK> getService();
 
 }

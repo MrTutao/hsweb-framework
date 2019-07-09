@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 http://www.hswebframework.org
+ *  Copyright 2019 http://www.hswebframework.org
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ var versions = [
     // }
 ];
 var JDBCType = java.sql.JDBCType;
+
 function install(context) {
     var database = context.database;
     database.createOrAlter("s_oauth2_client")
@@ -44,7 +45,7 @@ function install(context) {
         .addColumn().name("describe").varchar(256).comment("备注").commit()
         .addColumn().name("type").varchar(128).notNull().comment("客户端类型").commit()
         .addColumn().name("owner_id").varchar(32).notNull().comment("绑定的用户ID").commit()
-        .addColumn().name("creator_id").varchar(32).notNull().comment("创建者ID").commit()
+        .addColumn().name("creator_id").varchar(32).comment("创建者ID").commit()
         .addColumn().name("redirect_uri").varchar(1024).notNull().comment("redirect_uri").commit()
         .addColumn().name("create_time").number(32).notNull().comment("创建时间").commit()
         .addColumn().name("support_grant_types").varchar(2048).comment("支持的授权列表").commit()
@@ -62,6 +63,11 @@ function install(context) {
         .addColumn().name("create_time").number(32).notNull().comment("创建时间").commit()
         .addColumn().name("update_time").number(32).comment("更新时间").commit()
         .addColumn().name("scope").clob().comment("授权范围").commit()
+        .addColumn().name("grant_type").varchar(32).comment("授权类型").commit()
+        .index().name("idx_oauth_ser_client_id").column("client_id").commit()
+        .index().name("idx_oauth_ser_owner_id").column("owner_id").commit()
+        .index().name("idx_oauth_ser_access_token").column("access_token").commit()
+        .index().name("idx_oauth_ser_refresh_token").column("refresh_token").commit()
         .comment("OAuth2授权认证信息").commit();
 
     database.createOrAlter("s_oauth2_auth_code")

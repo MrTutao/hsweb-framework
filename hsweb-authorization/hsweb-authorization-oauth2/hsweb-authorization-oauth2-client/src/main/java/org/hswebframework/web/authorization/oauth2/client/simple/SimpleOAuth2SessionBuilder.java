@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 http://www.hswebframework.org
+ *  Copyright 2019 http://www.hswebframework.org
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@ import org.hswebframework.web.authorization.oauth2.client.simple.session.Authori
 import org.hswebframework.web.authorization.oauth2.client.simple.session.CachedOAuth2Session;
 import org.hswebframework.web.authorization.oauth2.client.simple.session.DefaultOAuth2Session;
 import org.hswebframework.web.authorization.oauth2.client.simple.session.PasswordSession;
+import org.hswebframework.web.oauth2.core.GrantType;
+import org.hswebframework.web.oauth2.core.OAuth2Constants;
 
 import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -80,15 +82,15 @@ public class SimpleOAuth2SessionBuilder implements OAuth2SessionBuilder {
             readWriteLock.writeLock().lock();
             AccessTokenInfo tokenInfo = tokenGetter.get();
             try {
+                token.setGrantType(grantType);
+                token.setServerId(serverConfig.getId());
                 if (tokenInfo != null) {
                     token.setId(tokenInfo.getId());
-                    tokenInfo.setUpdateTime(System.currentTimeMillis());
+                    token.setUpdateTime(System.currentTimeMillis());
                     oAuth2UserTokenRepository.update(tokenInfo.getId(), token);
                 } else {
-                    token.setGrantType(grantType);
                     token.setCreateTime(System.currentTimeMillis());
                     token.setUpdateTime(System.currentTimeMillis());
-                    token.setServerId(serverConfig.getId());
                     oAuth2UserTokenRepository.insert(token);
                 }
             } finally {
@@ -110,7 +112,7 @@ public class SimpleOAuth2SessionBuilder implements OAuth2SessionBuilder {
     }
 
 
-    Supplier<AccessTokenInfo> tokenGetter = () -> {
+    private Supplier<AccessTokenInfo> tokenGetter = () -> {
         readWriteLock.readLock().lock();
         try {
             return getClientCredentialsToken();
@@ -170,11 +172,10 @@ public class SimpleOAuth2SessionBuilder implements OAuth2SessionBuilder {
     @Override
     public OAuth2Session byAccessToken(String accessToken) {
         Supplier<AccessTokenInfo> supplier = () -> oAuth2UserTokenRepository.findByAccessToken(accessToken);
-        AccessTokenInfo tokenEntity = supplier.get();
-        if (tokenEntity == null) {
+        AccessTokenInfo tokenInfo = supplier.get();
+        if (tokenInfo == null) {
             throw new NotFoundException("access_token not found");
         }
-        AccessTokenInfo tokenInfo = new AccessTokenInfo();
         CachedOAuth2Session session = new CachedOAuth2Session(tokenInfo);
         session.setServerConfig(serverConfig);
         session.setRequestBuilderFactory(requestBuilderFactory);

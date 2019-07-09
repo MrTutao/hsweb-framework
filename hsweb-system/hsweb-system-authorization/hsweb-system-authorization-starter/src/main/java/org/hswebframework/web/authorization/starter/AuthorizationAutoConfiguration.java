@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 http://www.hswebframework.org
+ *  Copyright 2019 http://www.hswebframework.org
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -20,45 +20,78 @@ package org.hswebframework.web.authorization.starter;
 
 import org.hswebframework.web.authorization.AuthenticationInitializeService;
 import org.hswebframework.web.authorization.AuthenticationManager;
-import org.hswebframework.web.authorization.listener.AuthorizationListener;
-import org.hswebframework.web.authorization.listener.AuthorizationListenerDispatcher;
-import org.hswebframework.web.authorization.listener.event.AuthorizationEvent;
+import org.hswebframework.web.authorization.basic.embed.EmbedAuthenticationManager;
+import org.hswebframework.web.authorization.setting.UserSettingManager;
+import org.hswebframework.web.authorization.simple.DefaultAuthorizationAutoConfiguration;
+import org.hswebframework.web.authorization.twofactor.TwoFactorTokenManager;
+import org.hswebframework.web.authorization.twofactor.defaults.HashMapTwoFactorTokenManager;
 import org.hswebframework.web.service.authorization.simple.SimpleAuthenticationManager;
-import org.hswebframework.utils.ClassUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.hswebframework.web.service.authorization.simple.totp.TotpTwoFactorProvider;
+import org.mybatis.spring.annotation.MapperScan;
+import org.springframework.boot.autoconfigure.AutoConfigureBefore;
+import org.springframework.boot.autoconfigure.condition.*;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.List;
+import org.springframework.context.annotation.Primary;
 
 /**
  * @author zhouhao
  */
 @Configuration
 @ComponentScan({"org.hswebframework.web.service.authorization.simple"
-        , "org.hswebframework.web.controller.authorization"})
+        , "org.hswebframework.web.authorization.controller"})
+@MapperScan("org.hswebframework.web.authorization.dao")
+@AutoConfigureBefore(value = {
+        DefaultAuthorizationAutoConfiguration.class
+}, name = "org.hswebframework.web.authorization.basic.configuration.AuthorizingHandlerAutoConfiguration")
 public class AuthorizationAutoConfiguration {
 
-    @Autowired(required = false)
-    private List<AuthorizationListener> listeners;
-
-    @Bean
-    @SuppressWarnings("unchecked")
-    public <E extends AuthorizationEvent> AuthorizationListenerDispatcher authorizationListenerDispatcher() {
-        AuthorizationListenerDispatcher dispatcher = new AuthorizationListenerDispatcher();
-        if (listeners != null) {
-            listeners.forEach(listener -> dispatcher.addListener((Class<E>) ClassUtils.getGenericType(listener.getClass()), listener));
+    @ConditionalOnMissingClass("org.hswebframework.web.authorization.basic.embed.EmbedAuthenticationManager")
+    @Configuration
+    public static class NoEmbedAuthenticationManagerAutoConfiguration {
+        @Bean
+        @Primary
+        public AuthenticationManager authenticationManager(AuthenticationInitializeService authenticationInitializeService) {
+            return new SimpleAuthenticationManager(authenticationInitializeService);
         }
-        return dispatcher;
+
+    }
+
+    @ConditionalOnClass(EmbedAuthenticationManager.class)
+    @Configuration
+    public static class EmbedAuthenticationManagerAutoConfiguration {
+        @Bean
+        public EmbedAuthenticationManager embedAuthenticationManager() {
+            return new EmbedAuthenticationManager();
+        }
+
+        @Bean
+        @Primary
+        public AuthenticationManager authenticationManager(EmbedAuthenticationManager embedAuthenticationManager,
+                                                           AuthenticationInitializeService authenticationInitializeService) {
+            return new SimpleAuthenticationManager(authenticationInitializeService, embedAuthenticationManager);
+        }
     }
 
     @Bean
-    @ConditionalOnMissingBean(AuthenticationManager.class)
-    @ConditionalOnBean(AuthenticationInitializeService.class)
-    public AuthenticationManager authenticationManager(AuthenticationInitializeService authenticationInitializeService) {
-        return new SimpleAuthenticationManager(authenticationInitializeService);
+    @ConditionalOnProperty(prefix = "hsweb.authorize", name = "sync", havingValue = "true")
+    public AutoSyncPermission autoSyncPermission() {
+        return new AutoSyncPermission();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(TwoFactorTokenManager.class)
+    public TwoFactorTokenManager twoFactorTokenManager() {
+        return new HashMapTwoFactorTokenManager();
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "hsweb.authorize.two-factor.totp", name = "enable", havingValue = "true")
+    @ConfigurationProperties(prefix = "hsweb.authorize.two-factor.totp")
+    public TotpTwoFactorProvider totpTwoFactorProvider(UserSettingManager userSettingManager,
+                                                       TwoFactorTokenManager twoFactorTokenManager) {
+        return new TotpTwoFactorProvider(userSettingManager, twoFactorTokenManager);
     }
 }

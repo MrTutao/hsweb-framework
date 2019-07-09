@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 http://www.hswebframework.org
+ *  Copyright 2019 http://www.hswebframework.org
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ import java.io.Serializable;
  * @see OAuth2Request
  * @since 3.0
  */
-public interface OAuth2Session extends Serializable {
+public interface OAuth2Session{
     /**
      * 尝试进行认证
      *

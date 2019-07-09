@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 http://www.hswebframework.org
+ * Copyright 2019 http://www.hswebframework.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ package org.hswebframework.web.authorization.annotation;
 import org.hswebframework.web.authorization.access.DataAccessConfig;
 import org.hswebframework.web.authorization.access.DataAccessController;
 import org.hswebframework.web.authorization.Permission;
+import org.hswebframework.web.authorization.define.Phased;
 
 import java.lang.annotation.*;
 
@@ -42,7 +43,6 @@ public @interface RequiresDataAccess {
     /**
      * @return permission id ,如果为空将继承 {@link Authorize#permission()}
      * @see Permission#getId()
-     *
      */
     String permission() default "";
 
@@ -51,6 +51,8 @@ public @interface RequiresDataAccess {
      * @see DataAccessConfig#getAction()
      */
     String[] action() default {};
+
+    String[] supportType() default {};
 
     /**
      * @return logical
@@ -67,8 +69,21 @@ public @interface RequiresDataAccess {
      */
     Class<DataAccessController> controllerClass() default DataAccessController.class;
 
+    Phased phased() default Phased.before;
+
     /**
      * @return id参数名称
      */
     String idParamName() default "id";
+
+    /**
+     * @return 是否忽略, 忽略后将不进行权限控制
+     */
+    boolean ignore() default false;
+
+    /**
+     * @return 进行控制的实体类类型
+     * @since 3.0.6
+     */
+    Class entityType() default Void.class;
 }

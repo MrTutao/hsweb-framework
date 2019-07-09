@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 http://www.hswebframework.org
+ *  Copyright 2019 http://www.hswebframework.org
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ package org.hswebframework.web.oauth2.core;
 public interface GrantType {
     String authorization_code = "authorization_code";
     String implicit           = "implicit";
+    @SuppressWarnings("all")
     String password           = "password";
     String client_credentials = "client_credentials";
     String refresh_token      = "refresh_token";

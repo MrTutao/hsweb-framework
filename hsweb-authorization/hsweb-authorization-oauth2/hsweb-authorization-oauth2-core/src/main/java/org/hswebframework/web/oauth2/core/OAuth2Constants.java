@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 http://www.hswebframework.org
+ *  Copyright 2019 http://www.hswebframework.org
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,8 +19,6 @@
 package org.hswebframework.web.oauth2.core;
 
 /**
- * TODO 完成注释
- *
  * @author zhouhao
  */
 public interface OAuth2Constants {
@@ -36,6 +34,8 @@ public interface OAuth2Constants {
     String state         = "state";
     String code          = "code";
     String username      = "username";
+
+    @SuppressWarnings("all")
     String password      = "password";
 
 }

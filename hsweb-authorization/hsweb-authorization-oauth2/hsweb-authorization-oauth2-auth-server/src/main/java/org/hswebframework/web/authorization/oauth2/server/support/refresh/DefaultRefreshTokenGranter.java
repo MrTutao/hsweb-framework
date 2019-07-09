@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 http://www.hswebframework.org
+ *  Copyright 2019 http://www.hswebframework.org
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ import static org.hswebframework.web.oauth2.core.ErrorType.*;
 public class DefaultRefreshTokenGranter extends AbstractAuthorizationService implements RefreshTokenGranter {
 
     //默认有效时间为1年
-    private long refreshTokenTimeOut = 365 * 24 * 60 * 60 * 1000L;
+    private long refreshTokenTimeOut = 365_24_60_60_1000L;
 
     public void setRefreshTokenTimeOut(long refreshTokenTimeOut) {
         this.refreshTokenTimeOut = refreshTokenTimeOut;
@@ -71,7 +71,7 @@ public class DefaultRefreshTokenGranter extends AbstractAuthorizationService imp
             return accessToken;
         }
         Set<String> newRange = request.getScope() != null ? request.getScope() : accessToken.getScope();
-        if (!accessToken.getScope().containsAll(newRange)) {
+        if (accessToken.getScope() != null && !accessToken.getScope().containsAll(newRange)) {
             throw new GrantTokenException(ErrorType.SCOPE_OUT_OF_RANGE);
         }
         accessToken.setAccessToken(accessTokenService.createToken().getAccessToken());

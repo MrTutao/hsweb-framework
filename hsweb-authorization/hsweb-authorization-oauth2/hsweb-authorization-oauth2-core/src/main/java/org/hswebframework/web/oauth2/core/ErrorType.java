@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 http://www.hswebframework.org
+ *  Copyright 2019 http://www.hswebframework.org
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -49,13 +49,15 @@ public enum ErrorType {
     UNSUPPORTED_RESPONSE_TYPE(4014), //不支持的响应类型
 
     EXPIRED_CODE(4015), //AUTHORIZATION_CODE过期
-    EXPIRED_REFRESH_TOKEN(4020), //AUTHORIZATION_CODE过期
+    EXPIRED_REFRESH_TOKEN(4020), //REFRESH_TOKEN过期
 
     CLIENT_DISABLED(4016),//客户端已被禁用
 
     CLIENT_NOT_EXIST(4040),//客户端不存在
 
     USER_NOT_EXIST(4041),//客户端不存在
+
+    STATE_ERROR(4042), //stat错误
 
     ACCESS_DENIED(503), //访问被拒绝
 

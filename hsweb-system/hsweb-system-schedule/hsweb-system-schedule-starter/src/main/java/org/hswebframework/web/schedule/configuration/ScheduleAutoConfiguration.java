@@ -1,5 +1,9 @@
 package org.hswebframework.web.schedule.configuration;
 
+import lombok.extern.slf4j.Slf4j;
+import org.hswebframework.web.service.schedule.ScheduleJobExecutor;
+import org.hswebframework.web.service.schedule.ScheduleJobService;
+import org.hswebframework.web.service.schedule.simple.DefaultScriptScheduleJobExecutor;
 import org.hswebframework.web.service.schedule.simple.DynamicJobFactory;
 import org.quartz.Calendar;
 import org.quartz.Scheduler;
@@ -28,6 +32,7 @@ import java.util.Map;
 @ConditionalOnMissingBean({Scheduler.class, SchedulerFactoryBean.class})
 @ComponentScan({"org.hswebframework.web.service.schedule.simple"
         , "org.hswebframework.web.controller.schedule"})
+@Slf4j
 public class ScheduleAutoConfiguration {
     @Autowired
     private SchedulerProperties schedulerProperties;
@@ -76,5 +81,13 @@ public class ScheduleAutoConfiguration {
         return schedulerFactoryBean;
     }
 
+    @Bean
+    @ConditionalOnMissingBean(ScheduleJobExecutor.class)
+    public ScheduleJobExecutor scheduleJobExecutor(ScheduleJobService scheduleJobService) {
+        ScheduleJobExecutor defaultExecutor = new DefaultScriptScheduleJobExecutor(scheduleJobService);
+
+
+        return defaultExecutor;
+    }
 
 }

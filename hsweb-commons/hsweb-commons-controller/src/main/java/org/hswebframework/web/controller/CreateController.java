@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 http://www.hswebframework.org
+ * Copyright 2019 http://www.hswebframework.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,12 @@ package org.hswebframework.web.controller;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import org.hswebframework.web.authorization.Authentication;
 import org.hswebframework.web.authorization.Permission;
+import org.hswebframework.web.authorization.User;
 import org.hswebframework.web.authorization.annotation.Authorize;
+import org.hswebframework.web.commons.entity.RecordCreationEntity;
+import org.hswebframework.web.commons.entity.RecordModifierEntity;
 import org.hswebframework.web.controller.message.ResponseMessage;
 import org.hswebframework.web.logging.AccessLogger;
 import org.hswebframework.web.service.CreateEntityService;
@@ -48,22 +52,36 @@ import static org.hswebframework.web.controller.message.ResponseMessage.ok;
  */
 public interface CreateController<E, PK, M> {
 
+    @Authorize(ignore = true)
     <S extends InsertService<E, PK> & CreateEntityService<E>> S getService();
 
     @Authorize(action = Permission.ACTION_ADD)
     @PostMapping
-    @AccessLogger("{action_add}")
     @ResponseStatus(HttpStatus.CREATED)
-    @ApiOperation(value = "创建数据", responseReference = "add")
-    @ApiResponses({
-            @ApiResponse(code = 201, message = "创建成功,返回创建数据的ID"),
-            @ApiResponse(code = 401, message = "未授权"),
-            @ApiResponse(code = 403, message = "无权限")
-    })
+    @ApiOperation(value = "新增")
     default ResponseMessage<PK> add(@RequestBody M data) {
-        E entity = getService().createEntity();
-        return ok(getService().insert(modelToEntity(data, entity)));
+        E entity = modelToEntity(data, getService().createEntity());
+        //自动添加创建人和创建时间
+        if (entity instanceof RecordCreationEntity) {
+            RecordCreationEntity creationEntity = (RecordCreationEntity) entity;
+            creationEntity.setCreateTimeNow();
+            creationEntity.setCreatorId(Authentication.current()
+                    .map(Authentication::getUser)
+                    .map(User::getId)
+                    .orElse(null));
+        }
+        //修改人和修改时间
+        if (entity instanceof RecordModifierEntity) {
+            RecordModifierEntity creationEntity = (RecordModifierEntity) entity;
+            creationEntity.setModifyTimeNow();
+            creationEntity.setModifierId(Authentication.current()
+                    .map(Authentication::getUser)
+                    .map(User::getId)
+                    .orElse(null));
+        }
+        return ok(getService().insert(entity));
     }
 
+    @Authorize(ignore = true)
     E modelToEntity(M model, E entity);
 }

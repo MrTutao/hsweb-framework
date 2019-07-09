@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 http://www.hswebframework.org
+ *  Copyright 2019 http://www.hswebframework.org
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,14 +18,17 @@
 
 package org.hswebframework.web.authorization.oauth2.client.simple.request;
 
-interface UnCheck<T> {
-        T call() throws Exception;
+import org.hswebframework.web.authorization.oauth2.client.exception.UnCheckException;
 
-        static <T> T unCheck(UnCheck<T> unCheck) {
-            try {
-                return unCheck.call();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+interface UnCheck<T> {
+    @SuppressWarnings("all")
+    T call() throws Exception;
+
+    static <T> T unCheck(UnCheck<T> unCheck) {
+        try {
+            return unCheck.call();
+        } catch (Exception e) {
+            throw new UnCheckException(e);
         }
     }
+}

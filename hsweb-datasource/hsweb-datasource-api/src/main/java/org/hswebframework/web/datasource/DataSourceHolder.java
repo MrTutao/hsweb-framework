@@ -1,8 +1,7 @@
 package org.hswebframework.web.datasource;
 
 import org.hswebframework.web.datasource.exception.DataSourceNotFoundException;
-import org.hswebframework.web.datasource.switcher.DataSourceSwitcher;
-import org.hswebframework.web.datasource.switcher.DefaultDataSourceSwitcher;
+import org.hswebframework.web.datasource.switcher.*;
 
 /**
  * 用于操作动态数据源,如获取当前使用的数据源,使用switcher切换数据源等
@@ -17,11 +16,16 @@ public final class DataSourceHolder {
     /**
      * 动态数据源切换器
      */
-    static DataSourceSwitcher dataSourceSwitcher = defaultSwitcher;
+    static volatile DataSourceSwitcher dataSourceSwitcher = defaultSwitcher;
     /**
      * 动态数据源服务
      */
-    static DynamicDataSourceService dynamicDataSourceService;
+    static volatile DynamicDataSourceService dynamicDataSourceService;
+
+    static volatile TableSwitcher tableSwitcher = new DefaultTableSwitcher();
+
+    static volatile DatabaseSwitcher databaseSwitcher = new DefaultDatabaseSwitcher();
+
 
     public static void checkDynamicDataSourceReady() {
         if (dynamicDataSourceService == null) {
@@ -35,6 +39,22 @@ public final class DataSourceHolder {
     public static DataSourceSwitcher switcher() {
         return dataSourceSwitcher;
     }
+
+    /**
+     * @return 表切换器, 用于动态切换系统功能表
+     */
+    public static TableSwitcher tableSwitcher() {
+        return tableSwitcher;
+    }
+
+    /**
+     * @return 数据库切换器
+     * @since 3.0.8
+     */
+    public static DatabaseSwitcher databaseSwitcher() {
+        return databaseSwitcher;
+    }
+
 
     /**
      * @return 默认数据源

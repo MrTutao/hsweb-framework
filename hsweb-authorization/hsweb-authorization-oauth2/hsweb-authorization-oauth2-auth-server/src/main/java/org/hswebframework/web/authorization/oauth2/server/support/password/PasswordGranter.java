@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 http://www.hswebframework.org
+ *  Copyright 2019 http://www.hswebframework.org
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -22,8 +22,7 @@ import org.hswebframework.web.authorization.oauth2.server.AuthorizationService;
 import org.hswebframework.web.authorization.oauth2.server.OAuth2AccessToken;
 
 /**
- * TODO 完成注释
- *
+ * 密码方式授权
  * @author zhouhao
  */
 public interface PasswordGranter extends AuthorizationService {

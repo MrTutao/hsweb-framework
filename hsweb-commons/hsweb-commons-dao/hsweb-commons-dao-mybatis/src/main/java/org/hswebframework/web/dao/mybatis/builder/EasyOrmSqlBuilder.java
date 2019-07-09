@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright 2016 http://www.hswebframework.org
+ *  * Copyright 2019 http://www.hswebframework.org
  *  *
  *  * Licensed under the Apache License, Version 2.0 (the "License");
  *  * you may not use this file except in compliance with the License.
@@ -18,31 +18,31 @@
 
 package org.hswebframework.web.dao.mybatis.builder;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.beanutils.BeanUtilsBean;
 import org.apache.commons.beanutils.PropertyUtilsBean;
 import org.apache.ibatis.mapping.ResultMap;
 import org.apache.ibatis.mapping.ResultMapping;
 import org.hswebframework.ezorm.core.ValueConverter;
-import org.hswebframework.ezorm.core.param.InsertParam;
-import org.hswebframework.ezorm.core.param.QueryParam;
-import org.hswebframework.ezorm.core.param.Term;
-import org.hswebframework.ezorm.core.param.UpdateParam;
+import org.hswebframework.ezorm.core.param.*;
 import org.hswebframework.ezorm.rdb.meta.RDBColumnMetaData;
 import org.hswebframework.ezorm.rdb.meta.RDBDatabaseMetaData;
 import org.hswebframework.ezorm.rdb.meta.RDBTableMetaData;
+import org.hswebframework.ezorm.rdb.meta.converter.BooleanValueConverter;
 import org.hswebframework.ezorm.rdb.meta.converter.DateTimeConverter;
 import org.hswebframework.ezorm.rdb.meta.converter.NumberValueConverter;
+import org.hswebframework.ezorm.rdb.render.Sql;
 import org.hswebframework.ezorm.rdb.render.SqlAppender;
 import org.hswebframework.ezorm.rdb.render.SqlRender;
-import org.hswebframework.ezorm.rdb.render.dialect.Dialect;
-import org.hswebframework.ezorm.rdb.render.dialect.H2RDBDatabaseMetaData;
-import org.hswebframework.ezorm.rdb.render.dialect.MysqlRDBDatabaseMetaData;
-import org.hswebframework.ezorm.rdb.render.dialect.OracleRDBDatabaseMetaData;
+import org.hswebframework.ezorm.rdb.render.dialect.*;
 import org.hswebframework.ezorm.rdb.render.support.simple.CommonSqlRender;
 import org.hswebframework.ezorm.rdb.render.support.simple.SimpleWhereSqlBuilder;
 import org.hswebframework.web.BusinessException;
+import org.hswebframework.web.commons.entity.Entity;
+import org.hswebframework.web.commons.entity.factory.EntityFactory;
+import org.hswebframework.web.dao.mybatis.builder.jpa.JpaAnnotationParser;
 import org.hswebframework.web.dao.mybatis.plgins.pager.Pager;
-import org.hswebframework.web.dao.mybatis.utils.ResultMapsUtils;
+import org.hswebframework.web.dao.mybatis.MybatisUtils;
 import org.hswebframework.utils.StringUtils;
 import org.hswebframework.web.datasource.DataSourceHolder;
 import org.hswebframework.web.datasource.DatabaseType;
@@ -52,15 +52,21 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+
 /**
  * 使用easyorm 动态构建 sql
  *
  * @author zhouhao
  * @since 2.0
  */
+@Slf4j
 public class EasyOrmSqlBuilder {
 
-    private static final   EasyOrmSqlBuilder  instance   = new EasyOrmSqlBuilder();
+    public volatile boolean useJpa = false;
+
+    public EntityFactory entityFactory;
+
+    private static final EasyOrmSqlBuilder instance = new EasyOrmSqlBuilder();
     protected static final Map<Class, String> simpleName = new HashMap<>();
 
     protected PropertyUtilsBean propertyUtils = BeanUtilsBean.getInstance().getPropertyUtils();
@@ -100,86 +106,117 @@ public class EasyOrmSqlBuilder {
         return javaType;
     }
 
-    private final RDBDatabaseMetaData mysql  = new MysqlMeta();
+    private final RDBDatabaseMetaData mysql = new MysqlMeta();
     private final RDBDatabaseMetaData oracle = new OracleMeta();
-    private final RDBDatabaseMetaData h2     = new H2Meta();
+    private final RDBDatabaseMetaData h2 = new H2Meta();
+    private final RDBDatabaseMetaData postgresql = new PGMeta();
+    private final RDBDatabaseMetaData mssql = new MSSQLMeta();
 
-    private final ConcurrentMap<RDBDatabaseMetaData, Map<String, RDBTableMetaData>> metaCache = new ConcurrentHashMap<RDBDatabaseMetaData, Map<String, RDBTableMetaData>>() {
-        @Override
-        public Map<String, RDBTableMetaData> get(Object key) {
-            Map<String, RDBTableMetaData> map = super.get(key);
-            if (map == null) {
-                map = new HashMap<>();
-                put((RDBDatabaseMetaData) key, map);
-            }
-            return map;
-        }
-    };
+    private final ConcurrentMap<RDBDatabaseMetaData, Map<String, RDBTableMetaData>> metaCache = new ConcurrentHashMap<>();
 
     public RDBDatabaseMetaData getActiveDatabase() {
         DatabaseType type = DataSourceHolder.currentDatabaseType();
         switch (type) {
-            case h2:
-                return h2;
             case mysql:
                 return mysql;
             case oracle:
                 return oracle;
+            case postgresql:
+                return postgresql;
+            case h2:
+                return h2;
+            case jtds_sqlserver:
+            case sqlserver:
+                return mssql;
             default:
+                log.warn("不支持的数据库类型:[{}]", type);
                 return h2;
         }
     }
 
+    private String getRealTableName(String tableName) {
+
+        String newTable = DataSourceHolder.tableSwitcher().getTable(tableName);
+
+        if (!tableName.equals(newTable)) {
+            log.debug("use new table [{}] for [{}]", newTable, tableName);
+        }
+        return newTable;
+
+    }
+
     protected RDBTableMetaData createMeta(String tableName, String resultMapId) {
+//        tableName = getRealTableName(tableName);
         RDBDatabaseMetaData active = getActiveDatabase();
         String cacheKey = tableName.concat("-").concat(resultMapId);
-        Map<String, RDBTableMetaData> cache = metaCache.get(active);
+        Map<String, RDBTableMetaData> cache = metaCache.computeIfAbsent(active, k -> new ConcurrentHashMap<>());
+
         RDBTableMetaData cached = cache.get(cacheKey);
         if (cached != null) {
             return cached;
         }
-        RDBTableMetaData rdbTableMetaData = new RDBTableMetaData();
+
+        RDBTableMetaData rdbTableMetaData = new RDBTableMetaData() {
+            @Override
+            public String getName() {
+                //动态切换表名
+                return getRealTableName(tableName);
+            }
+        };
+        ResultMap resultMaps = MybatisUtils.getResultMap(resultMapId);
         rdbTableMetaData.setName(tableName);
         rdbTableMetaData.setDatabaseMetaData(active);
-        ResultMap resultMaps = ResultMapsUtils.getResultMap(resultMapId);
+
         List<ResultMapping> resultMappings = new ArrayList<>(resultMaps.getResultMappings());
         resultMappings.addAll(resultMaps.getIdResultMappings());
-        resultMappings.forEach(resultMapping -> {
+        for (ResultMapping resultMapping : resultMappings) {
             if (resultMapping.getNestedQueryId() == null) {
-                RDBColumnMetaData column = new RDBColumnMetaData(){
-                    @Override
-                    public RDBColumnMetaData clone() {
-                        RDBColumnMetaData target = super.clone();
-                        target.setValueConverter(getValueConverter());
-                        return target;
-                    }
-                };
+                RDBColumnMetaData column = new RDBColumnMetaData();
                 column.setJdbcType(JDBCType.valueOf(resultMapping.getJdbcType().name()));
                 column.setName(resultMapping.getColumn());
+                if (resultMapping.getTypeHandler() != null) {
+                    column.setProperty("typeHandler", resultMapping.getTypeHandler().getClass().getName());
+                }
                 if (!StringUtils.isNullOrEmpty(resultMapping.getProperty())) {
                     column.setAlias(resultMapping.getProperty());
                 }
                 column.setJavaType(resultMapping.getJavaType());
                 column.setProperty("resultMapping", resultMapping);
-                ValueConverter dateConvert=new DateTimeConverter("yyyy-MM-dd HH:mm:ss", column.getJavaType()){
-                    @Override
-                    public Object getData(Object value) {
-                        if(value instanceof Number){
-                            return new Date(((Number) value).longValue());
+                //时间
+                if (column.getJdbcType() == JDBCType.DATE || column.getJdbcType() == JDBCType.TIMESTAMP) {
+                    ValueConverter dateConvert = new DateTimeConverter("yyyy-MM-dd HH:mm:ss", column.getJavaType()) {
+                        @Override
+                        public Object getData(Object value) {
+                            if (value instanceof Number) {
+                                return new Date(((Number) value).longValue());
+                            }
+                            return super.getData(value);
                         }
-                        return super.getData(value);
-                    }
-                };
-                if (column.getJdbcType() == JDBCType.DATE) {
+                    };
                     column.setValueConverter(dateConvert);
-                } else if (column.getJdbcType() == JDBCType.TIMESTAMP) {
-                    column.setValueConverter(dateConvert);
-                } else if (column.getJdbcType() == JDBCType.NUMERIC) {
+                } else if (column.getJavaType() == boolean.class || column.getJavaType() == Boolean.class) {
+                    column.setValueConverter(new BooleanValueConverter(column.getJdbcType()));
+                } else if (TypeUtils.isNumberType(column)) { //数字
+                    //数字
                     column.setValueConverter(new NumberValueConverter(column.getJavaType()));
                 }
                 rdbTableMetaData.addColumn(column);
             }
-        });
+        }
+
+        if (useJpa) {
+            Class type = entityFactory == null ? resultMaps.getType() : entityFactory.getInstanceType(resultMaps.getType());
+            RDBTableMetaData parseResult = JpaAnnotationParser.parseMetaDataFromEntity(type);
+            if (parseResult != null) {
+                for (RDBColumnMetaData columnMetaData : parseResult.getColumns()) {
+                    if (rdbTableMetaData.findColumn(columnMetaData.getName()) == null) {
+                        columnMetaData = columnMetaData.clone();
+                        columnMetaData.setProperty("fromJpa", true);
+                        rdbTableMetaData.addColumn(columnMetaData);
+                    }
+                }
+            }
+        }
         cache.put(cacheKey, rdbTableMetaData);
         return rdbTableMetaData;
     }
@@ -201,24 +238,34 @@ public class EasyOrmSqlBuilder {
             if (columnMetaData.getName().contains(".")) {
                 return;
             }
+            Object value;
             try {
-                Object tmp = propertyUtils.getProperty(param.getData(), columnMetaData.getAlias());
-                if (tmp == null) {
+                value = propertyUtils.getProperty(param.getData(), columnMetaData.getAlias());
+                if (value == null) {
                     return;
                 }
             } catch (Exception e) {
                 return;
             }
-            appender.add(",", encodeColumn(dialect, columnMetaData.getName())
-                    , "=", "#{data.", columnMetaData.getAlias(),
-                    ",javaType=", EasyOrmSqlBuilder.getJavaType(columnMetaData.getJavaType()),
-                    ",jdbcType=", columnMetaData.getJdbcType(),
-                    "}");
+            if (value instanceof Sql) {
+                appender.add(",", encodeColumn(dialect, columnMetaData.getName())
+                        , "=", ((Sql) value).getSql());
+            } else {
+                String typeHandler = columnMetaData.getProperty("typeHandler")
+                        .getValue();
+
+                appender.add(",", encodeColumn(dialect, columnMetaData.getName())
+                        , "=", "#{data.", columnMetaData.getAlias(),
+                        ",javaType=", EasyOrmSqlBuilder.getJavaType(columnMetaData.getJavaType()),
+                        ",jdbcType=", columnMetaData.getJdbcType(),
+                        typeHandler != null ? ",typeHandler=" + typeHandler : "",
+                        "}");
+            }
         });
         if (!appender.isEmpty()) {
             appender.removeFirst();
         } else {
-            throw new UnsupportedOperationException("{no_columns_will_be_update}");
+            throw new UnsupportedOperationException("没有列被修改");
         }
         return appender.toString();
     }
@@ -242,8 +289,7 @@ public class EasyOrmSqlBuilder {
         }
         RDBTableMetaData tableMetaData = createMeta(tableName, resultMapId);
         SqlRender<InsertParam> render = tableMetaData.getDatabaseMetaData().getRenderer(SqlRender.TYPE.INSERT);
-        String sql = render.render(tableMetaData, insertParam).getSql();
-        return sql;
+        return render.render(tableMetaData, insertParam).getSql();
     }
 
     public String buildUpdateSql(String resultMapId, String tableName, UpdateParam param) {
@@ -253,7 +299,11 @@ public class EasyOrmSqlBuilder {
         return render.render(tableMetaData, param).getSql();
     }
 
-    public String buildSelectFields(String resultMapId, String tableName, QueryParam param) {
+    public String buildSelectFields(String resultMapId, String tableName, Object arg) {
+        QueryParam param = null;
+        if (arg instanceof QueryParam) {
+            param = ((QueryParam) arg);
+        }
         if (param == null) {
             return "*";
         }
@@ -275,12 +325,14 @@ public class EasyOrmSqlBuilder {
             }
             String cname = columnMetaData.getName();
             if (!cname.contains(".")) {
-                cname = tableName.concat(".").concat(cname);
+                cname = tableMetaData.getName().concat(".").concat(cname);
             }
+            boolean isJpa = columnMetaData.getProperty("fromJpa", false).isTrue();
+
             appender.add(",", encodeColumn(dialect, cname)
                     , " AS "
                     , dialect.getQuoteStart()
-                    , columnMetaData.getName()
+                    , isJpa ? columnMetaData.getAlias() : columnMetaData.getName()
                     , dialect.getQuoteEnd());
         });
         param.getIncludes().remove("*");
@@ -291,10 +343,15 @@ public class EasyOrmSqlBuilder {
         return appender.toString();
     }
 
-    public String buildOrder(String resultMapId, String tableName, QueryParam param) {
+    public String buildOrder(String resultMapId, String tableName, Object arg) {
+        QueryParam param = null;
+        if (arg instanceof QueryParam) {
+            param = ((QueryParam) arg);
+        }
         if (param == null) {
             return "";
         }
+
         RDBTableMetaData tableMetaData = createMeta(tableName, resultMapId);
         SqlAppender appender = new SqlAppender(" order by ");
         param.getSorts()
@@ -308,7 +365,7 @@ public class EasyOrmSqlBuilder {
                     }
                     String cname = column.getName();
                     if (!cname.contains(".")) {
-                        cname = tableName.concat(".").concat(cname);
+                        cname = tableMetaData.getName().concat(".").concat(cname);
                     }
                     appender.add(encodeColumn(tableMetaData.getDatabaseMetaData().getDialect(), cname), " ", sort.getOrder(), ",");
                 });
@@ -327,6 +384,26 @@ public class EasyOrmSqlBuilder {
         return where;
     }
 
+    public String buildWhereForUpdate(String resultMapId, String tableName, Object param) {
+        String where = buildWhere(resultMapId, tableName, param);
+        if (where.trim().isEmpty()) {
+            throw new BusinessException("禁止执行无条件的更新操作");
+        }
+        return where;
+    }
+
+    public String buildWhere(String resultMapId, String tableName, Object param) {
+        List<Term> terms;
+        if (param instanceof Param) {
+            terms = ((Param) param).getTerms();
+        } else if (param instanceof Entity) {
+            terms = SqlParamParser.parseQueryParam(param).getTerms();
+        } else {
+            terms = new ArrayList<>();
+        }
+        return buildWhere(resultMapId, tableName, terms);
+    }
+
     public String buildWhere(String resultMapId, String tableName, List<Term> terms) {
         RDBTableMetaData tableMetaData = createMeta(tableName, resultMapId);
         RDBDatabaseMetaData databaseMetaDate = getActiveDatabase();
@@ -342,26 +419,67 @@ public class EasyOrmSqlBuilder {
     }
 
     class MysqlMeta extends MysqlRDBDatabaseMetaData {
-        public MysqlMeta() {
+        MysqlMeta() {
             super();
             renderMap.put(SqlRender.TYPE.INSERT, new InsertSqlBuilder());
             renderMap.put(SqlRender.TYPE.UPDATE, new UpdateSqlBuilder(Dialect.MYSQL));
         }
+
+        @Override
+        public String getDatabaseName() {
+            return DataSourceHolder.databaseSwitcher().currentDatabase();
+        }
     }
 
     class OracleMeta extends OracleRDBDatabaseMetaData {
-        public OracleMeta() {
+        OracleMeta() {
             super();
             renderMap.put(SqlRender.TYPE.INSERT, new InsertSqlBuilder());
             renderMap.put(SqlRender.TYPE.UPDATE, new UpdateSqlBuilder(Dialect.ORACLE));
         }
+
+        @Override
+        public String getDatabaseName() {
+            return DataSourceHolder.databaseSwitcher().currentDatabase();
+        }
     }
 
     class H2Meta extends H2RDBDatabaseMetaData {
-        public H2Meta() {
+        H2Meta() {
             super();
             renderMap.put(SqlRender.TYPE.INSERT, new InsertSqlBuilder());
             renderMap.put(SqlRender.TYPE.UPDATE, new UpdateSqlBuilder(Dialect.H2));
+        }
+
+        @Override
+        public String getDatabaseName() {
+            return DataSourceHolder.databaseSwitcher().currentDatabase();
+        }
+    }
+
+    class PGMeta extends PGRDBDatabaseMetaData {
+        PGMeta() {
+            super();
+            renderMap.put(SqlRender.TYPE.INSERT, new InsertSqlBuilder());
+            renderMap.put(SqlRender.TYPE.UPDATE, new UpdateSqlBuilder(Dialect.POSTGRES));
+        }
+
+        @Override
+        public String getDatabaseName() {
+            return DataSourceHolder.databaseSwitcher().currentDatabase();
+        }
+    }
+
+    class MSSQLMeta extends MSSQLRDBDatabaseMetaData {
+        MSSQLMeta() {
+            super();
+            renderMap.put(SqlRender.TYPE.INSERT, new InsertSqlBuilder());
+            renderMap.put(SqlRender.TYPE.UPDATE, new UpdateSqlBuilder(Dialect.MSSQL));
+        }
+
+        @Override
+        public String getDatabaseName() {
+            return DataSourceHolder.databaseSwitcher().currentDatabase();
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 http://www.hswebframework.org
+ *  Copyright 2019 http://www.hswebframework.org
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -27,18 +27,19 @@ import java.io.PrintStream;
  * @author zhouhao
  */
 public class OAuth2RequestException extends RuntimeException {
-    ErrorType errorType;
+    private static final long serialVersionUID = 6170266627415485170L;
+    private ErrorType errorType;
 
-    OAuth2Response response;
+    private OAuth2Response response;
 
     public OAuth2RequestException(ErrorType errorType, OAuth2Response response) {
-        super(errorType.name());
+        super(errorType.name() + (errorType == ErrorType.OTHER ? ":" + response.asString() : ""));
         this.errorType = errorType;
         this.response = response;
     }
 
-    public OAuth2RequestException(String message,ErrorType errorType, OAuth2Response response) {
-        super(message);
+    public OAuth2RequestException(String message, ErrorType errorType, OAuth2Response response) {
+        super(errorType+":"+message);
         this.errorType = errorType;
         this.response = response;
     }

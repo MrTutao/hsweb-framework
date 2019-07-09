@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 http://www.hswebframework.org
+ *  Copyright 2019 http://www.hswebframework.org
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -27,8 +27,6 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.Set;
 
 /**
- * TODO 完成注释
- *
  * @author zhouhao
  */
 public class HttpImplicitRequest extends HttpTokenRequest implements ImplicitRequest {
@@ -40,7 +38,7 @@ public class HttpImplicitRequest extends HttpTokenRequest implements ImplicitReq
     @Override
     public String getClientId() {
         return getParameter(OAuth2Constants.client_id)
-                .orElseThrow(ErrorType.ILLEGAL_CLIENT_ID.throwThis(GrantTokenException::new));
+                .orElseGet(()->ErrorType.ILLEGAL_CLIENT_ID.throwThis(GrantTokenException::new));
     }
 
     @Override

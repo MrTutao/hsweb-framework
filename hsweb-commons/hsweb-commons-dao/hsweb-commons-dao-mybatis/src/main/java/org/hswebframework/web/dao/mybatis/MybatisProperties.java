@@ -1,6 +1,6 @@
 /*
  *
- *  * Copyright 2016 http://www.hswebframework.org
+ *  * Copyright 2019 http://www.hswebframework.org
  *  *
  *  * Licensed under the Apache License, Version 2.0 (the "License");
  *  * you may not use this file except in compliance with the License.
@@ -56,11 +56,15 @@ public class MybatisProperties extends org.mybatis.spring.boot.autoconfigure.Myb
      * 排除使用{@link Resource#getURL()#toString()}进行对比
      */
     private              String[] mapperLocationExcludes = null;
+    /**
+     * 使用jpa注解来解析表结构，动态生成查询条件
+     */
+    private              boolean  useJpa                 = true;
 
-    private List<MybatisMapperCustomer> mybatisMappers;
+    private List<MybatisMapperCustomizer> mybatisMappers;
 
     @Autowired(required = false)
-    public void setMybatisMappers(List<MybatisMapperCustomer> mybatisMappers) {
+    public void setMybatisMappers(List<MybatisMapperCustomizer> mybatisMappers) {
         this.mybatisMappers = mybatisMappers;
     }
 
@@ -80,6 +84,14 @@ public class MybatisProperties extends org.mybatis.spring.boot.autoconfigure.Myb
         this.dynamicDatasource = dynamicDatasource;
     }
 
+    public void setUseJpa(boolean useJpa) {
+        this.useJpa = useJpa;
+    }
+
+    public boolean isUseJpa() {
+        return useJpa;
+    }
+
     @Override
     public Resource[] resolveMapperLocations() {
         Map<String, Resource> resources = new HashMap<>();
@@ -95,7 +107,7 @@ public class MybatisProperties extends org.mybatis.spring.boot.autoconfigure.Myb
 
         if (mybatisMappers != null) {
             mybatisMappers.stream()
-                    .map(MybatisMapperCustomer::getIncludes)
+                    .map(MybatisMapperCustomizer::getIncludes)
                     .flatMap(Arrays::stream)
                     .forEach(locations::add);
         }
@@ -113,7 +125,7 @@ public class MybatisProperties extends org.mybatis.spring.boot.autoconfigure.Myb
         Set<String> excludes = new HashSet<>();
         if (mybatisMappers != null) {
             mybatisMappers.stream()
-                    .map(MybatisMapperCustomer::getExcludes)
+                    .map(MybatisMapperCustomizer::getExcludes)
                     .flatMap(Arrays::stream)
                     .forEach(excludes::add);
         }

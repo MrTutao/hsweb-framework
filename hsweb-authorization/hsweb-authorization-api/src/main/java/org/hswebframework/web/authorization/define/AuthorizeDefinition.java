@@ -15,7 +15,11 @@ import java.util.Set;
  */
 public interface AuthorizeDefinition {
 
+    /**
+     * @return 验证时机
+     */
     Phased getPhased();
+
     /**
      * 优先级,如果获取到多个权限控制定义是,则先判断优先级高的
      *
@@ -33,6 +37,10 @@ public interface AuthorizeDefinition {
      * @return 要控制的权限
      */
     Set<String> getPermissions();
+
+    String[] getPermissionDescription();
+
+    String[] getActionDescription();
 
     /**
      * 要控制的权限事件,仅当{@link this#getPermissions()}不为空的时候生效

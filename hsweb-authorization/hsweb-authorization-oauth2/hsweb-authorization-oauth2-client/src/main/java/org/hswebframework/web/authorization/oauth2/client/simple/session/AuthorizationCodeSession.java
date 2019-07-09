@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 http://www.hswebframework.org
+ *  Copyright 2019 http://www.hswebframework.org
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,10 +18,10 @@
 
 package org.hswebframework.web.authorization.oauth2.client.simple.session;
 
-import org.hswebframework.web.authorization.oauth2.client.GrantType;
-import org.hswebframework.web.authorization.oauth2.client.OAuth2Constants;
 import org.hswebframework.web.authorization.oauth2.client.request.OAuth2Request;
 import org.hswebframework.web.authorization.oauth2.client.request.OAuth2Session;
+import org.hswebframework.web.oauth2.core.GrantType;
+import org.hswebframework.web.oauth2.core.OAuth2Constants;
 
 /**
  * @author zhouhao

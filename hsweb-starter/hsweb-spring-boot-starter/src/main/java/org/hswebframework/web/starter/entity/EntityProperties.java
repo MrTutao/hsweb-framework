@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 http://www.hswebframework.org
+ *  Copyright 2019 http://www.hswebframework.org
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -25,12 +25,10 @@ import org.hswebframework.utils.StringUtils;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.ClassUtils;
 
-import java.lang.instrument.IllegalClassFormatException;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * TODO 完成注释
  * <p>
  * <pre>
  *    hsweb:
@@ -55,12 +53,12 @@ public class EntityProperties {
 
     public Map<Class<Entity>, MapperEntityFactory.Mapper> createMappers() {
         if (mappings == null || mappings.isEmpty()) {
-            return Collections.emptyMap();
+            return new java.util.HashMap<>();
         }
         return mappings.stream()
                 .map(Mapping::create)
                 .reduce(MapUtils::merge)
-                .get();
+                .orElseGet(HashMap::new);
     }
 
     public static class Mapping {
@@ -70,7 +68,7 @@ public class EntityProperties {
 
         Map<Class<Entity>, MapperEntityFactory.Mapper> create() {
             if (mapping == null || mapping.isEmpty()) {
-                return Collections.emptyMap();
+                return new java.util.HashMap<>();
             }
             return mapping.entrySet().stream()
                     .collect(Collectors.toMap(
@@ -92,18 +90,17 @@ public class EntityProperties {
         protected Class<Entity> getTargetClass(String name) {
             Class<Entity> entityClass = getClass(targetBasePackage, name);
             if (entityClass.isInterface()) {
-                throw new RuntimeException("class " + name + " is interface!");
+                throw new UnsupportedOperationException("class " + name + " is interface!");
             }
             return entityClass;
         }
 
-        @SuppressWarnings("unchecked")
+        @SuppressWarnings("all")
         public Class<Entity> classForName(String name) {
             try {
-                Class target = ClassUtils.forName(name, this.getClass().getClassLoader());
-                return target;
+                return (Class<Entity>) ClassUtils.forName(name, this.getClass().getClassLoader());
             } catch (ClassNotFoundException e) {
-                throw new RuntimeException(e);
+                throw new UnsupportedOperationException(e);
             }
         }
 

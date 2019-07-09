@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 http://www.hswebframework.org
+ *  Copyright 2019 http://www.hswebframework.org
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -82,6 +82,10 @@ public class HttpTokenRequest implements TokenRequest {
         }
         if (authorization != null && !authorization.isEmpty()) {
             String[] decodeCredentials = decodeClientAuthenticationHeader(authorization);
+            //fix #63
+            if (decodeCredentials == null) {
+                return null;
+            }
             if (decodeCredentials.length > 1) {
                 principal = decodeCredentials[0];
                 credentials = decodeCredentials[1];

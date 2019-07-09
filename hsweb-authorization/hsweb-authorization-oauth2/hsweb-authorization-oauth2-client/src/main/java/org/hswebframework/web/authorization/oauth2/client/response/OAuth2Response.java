@@ -1,5 +1,5 @@
 /*
- *  Copyright 2016 http://www.hswebframework.org
+ *  Copyright 2019 http://www.hswebframework.org
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ package org.hswebframework.web.authorization.oauth2.client.response;
 import org.hswebframework.web.authorization.oauth2.client.exception.OAuth2RequestException;
 import org.hswebframework.web.oauth2.core.ErrorType;
 
+import java.io.InputStream;
 import java.util.List;
 import java.util.function.BiConsumer;
 
@@ -31,6 +32,7 @@ import java.util.function.BiConsumer;
  */
 public interface OAuth2Response {
 
+    InputStream asStream();
     /**
      * @return 结果转为字符串
      */
